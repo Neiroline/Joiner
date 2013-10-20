@@ -12,9 +12,9 @@
 //конечно, нам потребуются структуры из Windows.h
 //но ничто, в общем-то, не мешает их перенести прямо в код и скомпилировать это под линукс 
 #include <Windows.h>
-
+#include <string>
 using namespace std;
-
+#include <string>
 //Несколько макросов представленны Мъщых
 #define Is2power(x) (!(x & (x - 1)))
 #define ALIGN_DOWN(x, align) (x & ~(align - 1))
@@ -24,8 +24,6 @@ using namespace std;
 
 int main(int argc,char* argv[])
 {
-	argv[1]="target.exe";
-	argv[2]="include.exe";
 //если аргумент не передали - выведем пример использования и выйдем
 	
 	if (argc!=3){
@@ -35,7 +33,7 @@ int main(int argc,char* argv[])
 
 //откроем файл формата PE в бинарном режиме
 	std::fstream pefile1;
-	pefile1.open(argv[1], std::ios::in | std::ios::binary);
+	pefile1.open(argv[1]);
 	
 	if(!pefile1.is_open())
 	{
@@ -47,7 +45,7 @@ int main(int argc,char* argv[])
 //определим размер файла, он нам пригодится дальше
 	pefile1.seekg(0, pefile1.end);
 //для этого переведем файловый указатель чтения в самый конец файла, получим его позицию
-	long filesize1 = pefile1.tellg();
+//	long filesize1 = pefile1.tellg();
 //это и будет размер файла в байтах
 //затем вернем файловый указатель в начало файла
 	pefile1.seekg(0);
@@ -117,25 +115,59 @@ int main(int argc,char* argv[])
 
 	//************************************2 файл***************************************************************************
 	
+	char* buffer=NULL;
 	
-	
-	std::fstream pefile2;
-	pefile2.open(argv[2], std::ios::in | std::ios::binary);
+	std::fstream  pefile2;
+	pefile2.open(argv[2]);
 	if (pefile2.is_open())
   {
 	//определим размер файла
 		pefile2.seekg(0,pefile2.end);
 	//для этого переведем файловый указатель чтения в самый конец файла, получим его позицию
-		long filesize2 = pefile2.tellg();//это и будет размер файла в байтах
-		pefile2.seekg(0);//затем вернем файловый указатель в начало файла
-		char* buffer=new char[filesize2]; //выделяю память под массив		
+		std::streamoff filesize2 = pefile2.tellg();//это и будет размер файла в байтах
+		cout<<"filesize= "<<filesize2<<endl;
+		pefile2.seekg(0);
+		buffer=new char[filesize2]; //выделяю память под массив		
 		pefile2.read(buffer,filesize2);//читаем файл в буфер 
 		cout<<"buffer= "<<buffer<<endl;//DEBUG!	
+
+		//**************************проверяю не склеивался ли файл ранее**********************************************
+		int position=0;//позиция для DEBUG пригодится
+		pefile1.seekg( 100 , ios::beg );//поместим файловый за пределы первого заголовка MZ(отбалды написал 100 - главно чтобы не попасть в первый заголовок)
+		position=pefile1.tellg();
+		char flag1[]="MZ"; //эталон поиска
+		char word[]="00"; //то с чем будет сравниваться
+		
+		while (! pefile1.eof())// не достигает конца не понимаю почему ----смотреть ниже причину
+
+	   {
+		  
+		  pefile1>>word; //читаем по 2 символа -Как то черта первый раз записывает слово run!! -должен записать ru
+		  if (word==flag1)//сравниваем на наличие MZ и если он есть то выходим из программы
+			  {	   
+			  cout << "Including is alredy ok";//если подключен то все завершаем и закрываем
+			  pefile2.close();
+			  pefile1.close();
+			  delete[] buffer;
+			  system("pause");
+			  return 0;
+			  }
+		  else
+			  {
+				pefile1.seekg(position+1,ios::beg);//смещение от текущего положения(просто смещение на 1 - не играет я думаю роли)
+				position=pefile1.tellg();//DEBUG смотрю движуху в памяти по файлу, после шапки DOS перестает двигаться и впадает в бесконечный цикл (ПРОБЛЕМА! ЗДЕСЬ!)
+										 // проблема может в том что я не правильно организовал перебор по файлу(все таки бинарный) - хотя ему поидее должно быть пофиг
+
+			  }
+	   }
+		//***********************************************продолжение склейки******************************************************************
+		
+		pefile1.seekg(0,pefile1.end);//ставим в конец указатель
 		pefile1.write(buffer,filesize2) ;//запишем из буфера в файл 1
 		pefile2.close();
 		delete[] buffer;
 		cout<<"including is OK"<<endl;		
-	}
+		}
 	else
 	{
 		cout<<"Failure to open pefile2";		
