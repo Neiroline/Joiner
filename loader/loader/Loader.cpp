@@ -13,6 +13,8 @@
 //но ничто, в общем-то, не мешает их перенести прямо в код и скомпилировать это под линукс 
 #include <Windows.h>
 #include <string>
+#include "disam.h"
+
 
 using namespace std;
 
@@ -31,7 +33,7 @@ int main(int argc,char* argv[])
 		goto jump;//Не надо кричать и говорить ФУУУ!))) Деревенский выход
 	}
 	if (!argc==3){
-		cout<<"Example: loader file1 file2"<<endl<<"file1-program"<<endl<<"file2-inject program"<<endl<<--------------------------OR------------------------<<endl<<"Example2:loader file1 file2 return";
+		cout<<"Example: loader file1 file2"<<endl<<"file1-program"<<endl<<"file2-inject program"<<endl<<"--------------------------OR------------------------"<<endl<<"Example2:loader file1 file2 return";
 		return 0;
 	}
 jump:
@@ -85,13 +87,13 @@ std::streamoff filesize1 = pefile1.tellg();
 
 
 
-	//************************************2 файл***************************************************************************
+	//************************************инициализация***************************************************************************
 	
 	char* buffer=NULL;
 	char* buffer1=NULL;
 	
 
-	
+	//************************************раскрепляю-исходное*********************************************************************
 	if (argc==4 && !strcmp(argv[3], "return")) //введем третии аргумент(можно сделать красивее-вопрос эстетики)
 		{  
 			
@@ -110,9 +112,10 @@ std::streamoff filesize1 = pefile1.tellg();
 			
 			delete[] buffer;
 			cout<<"Secret is created"<<endl;
-			system ("pause");
+			//system ("pause");
 			return 0;
 		}
+//**************************************склеивание*******************************************************************************
 		else
 		{
 			std::fstream  pefile2;
@@ -128,15 +131,19 @@ std::streamoff filesize1 = pefile1.tellg();
 				pefile2.seekg(0);
 				buffer=new char[filesize2]; //выделяю память под массив		
 				pefile2.read(buffer,filesize2);//читаем файл в буфер 
-				cout<<"buffer= "<<buffer<<endl;//DEBUG!	
-
-				
-				
 				pefile1.seekg(0,std::ios::end);//ставим в конец указатель
-				pefile1.write(buffer,filesize2) ;//запишем из буфера в файл 1
-				
+				//pefile1.write(buffer,filesize2) ;//запишем из буфера в файл 1
+//**************************************подключение дизассемблерного модуля*********************************************************	
+				pefile1.seekg(0);
+				buffer1=new char[filesize1];
+				pefile1.read(buffer,filesize1);
+				/* ============================= Disassemble code located in that buffer */
+				DisassembleCode ( (char* )buffer+400, (char*) buffer + 5600, 0x17000);//нам нужна функция call или jmp! беру 100 байт больше не надо. предел 3961
+				cout<<buffer;
+				cout<<"filesize2= "<<filesize2<<endl;
+//**************************************************продолжение кода(завершающие этапы)*********************************************************
 				pefile2.close();
-				std::remove("include.exe");//удалим с жесткого диска
+				//std::remove("include.exe");//удалим с жесткого диска
 				delete[] buffer;
 				cout<<"including is OK"<<endl;		
 				}
@@ -145,7 +152,7 @@ std::streamoff filesize1 = pefile1.tellg();
 				cout<<"Failure to open pefile2";		
 			}
 			pefile1.close();
-			system("pause");
+			//system("pause");
 			return 0;
 	}
 }
